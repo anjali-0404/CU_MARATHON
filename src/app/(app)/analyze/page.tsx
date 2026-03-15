@@ -59,7 +59,7 @@ export default function AnalyzePage() {
         setScanResults([]);
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh-codetrust-backend.hf.space";
             const res = await fetch(`${apiUrl}/scan`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -85,7 +85,7 @@ export default function AnalyzePage() {
         setFixedCode("");
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh-codetrust-backend.hf.space";
             const res = await fetch(`${apiUrl}/fix`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -100,7 +100,7 @@ export default function AnalyzePage() {
             }
         } catch (error) {
             console.error("Fix failed:", error);
-            setFixedCode("Error connecting to local Ollama model.");
+            setFixedCode("Error connecting to the cloud AI model.");
         } finally {
             setIsFixing(false);
         }
