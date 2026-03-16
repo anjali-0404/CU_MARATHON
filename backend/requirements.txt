@@ -4,3 +4,4 @@ requests==2.31.0
 transformers==4.38.2
 torch==2.2.1
 gunicorn==21.2.0
+numpy==1.26.4
