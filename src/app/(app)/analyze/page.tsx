@@ -59,7 +59,7 @@ export default function AnalyzePage() {
         setScanResults([]);
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh-codetrust-backend.hf.space";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh1305-backend.hf.space";
             const res = await fetch(`${apiUrl}/scan`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -85,7 +85,7 @@ export default function AnalyzePage() {
         setFixedCode("");
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh-codetrust-backend.hf.space";
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh1305-backend.hf.space";
             const res = await fetch(`${apiUrl}/fix`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
