@@ -1,5 +1,5 @@
 ---
-title: Backend
+title: CodeTrust Backend
 emoji: 🚀
 colorFrom: blue
 colorTo: purple
@@ -8,11 +8,8 @@ app_file: app.py
 pinned: false
 ---
 
-Backend API for CodeTrust AI.
-
-This Space runs the Flask backend that powers the CodeTrust AI vulnerability scanner and auto-fix system.
+Flask backend for CodeTrust AI.
 
 Endpoints:
-
 POST /scan
 POST /fix
