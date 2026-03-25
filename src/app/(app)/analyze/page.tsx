@@ -108,8 +108,8 @@ export default function AnalyzePage() {
         setFixedCode("");
 
         try {
-            // 👇 Pointing to your local API and passing the scanId
-            const res = await fetch(`/api/fix`, {
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh-codetrust-backend.hf.space";
+            const res = await fetch(`${apiUrl}/fix`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
