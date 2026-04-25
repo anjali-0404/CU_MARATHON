@@ -2,7 +2,7 @@ import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 # --- CONFIGURATION ---
-CONFIDENCE_THRESHOLD = 0.88  # Below this, treat as safe
+CONFIDENCE_THRESHOLD = 0.50  # Lowered from 0.88 to be more sensitive
 CONTEXT_RADIUS = 2           # Lines of context before and after
 CONTEXT_SEP = " </s> "       # GraphCodeBERT separator token
 MAX_LENGTH = 384             # Max tokens for the transformer
@@ -16,12 +16,13 @@ FAKE_GUARDS = [
 ]
 
 # Patterns to skip (forces line to be SAFE)
+# Removed "def" and "return " as they can contain vulnerabilities
 SKIP_PATTERNS = [
     "import ", "from ", "require(", "include(", "using ",
     "#include", "package ", "const express", "}", "{",
     "*/", "/*", "//", "#", "@app.route", "@Override",
     "@RequestMapping", "app = Flask", "app.listen",
-    "public class", "class ", "<?php", "?>", "return ","def"
+    "public class", "class ", "<?php", "?>"
 ]
 
 # --- HELPER FUNCTIONS ---

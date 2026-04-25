@@ -22,19 +22,36 @@ CORS(app)
 
 print("Loading GraphCodeBERT scanner into memory...")
 
-# Correct model path inside Docker container
-MODEL_PATH = os.path.join(os.getcwd(), "securecode_model_v5_final")
+# Use the directory where app.py is located
+MODEL_DIR = os.path.dirname(os.path.abspath(__file__))
+MODEL_PATH = os.path.join(MODEL_DIR, "securecode_model_v5_final")
 
 # Load tokenizer + model
-tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
-model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+try:
+    if os.path.exists(MODEL_PATH):
+        print(f"Loading local model from: {MODEL_PATH}")
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_PATH)
+        model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
+    else:
+        print(f"Local model not found at {MODEL_PATH}")
+        print("Falling back to microsoft/graphcodebert-base (Note: This might not detect vulnerabilities correctly without fine-tuning)")
+        tokenizer = AutoTokenizer.from_pretrained("microsoft/graphcodebert-base")
+        model = AutoModelForSequenceClassification.from_pretrained("microsoft/graphcodebert-base", num_labels=2) # Assuming 2 labels based on line_level_detect.py
+except Exception as e:
+    print(f"Error loading model: {e}")
+    # Last resort fallback if even the base model fails
+    print("Critical error: Could not load any model. Backend will start but /scan will fail.")
+    tokenizer = None
+    model = None
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-model.to(device)
-model.eval()
-
-print(f"Scanner loaded successfully on {device}!")
+if model:
+    model.to(device)
+    model.eval()
+    print(f"Scanner loaded successfully on {device}!")
+else:
+    print("Scanner NOT loaded. /scan endpoint will be unavailable.")
 
 
 # -------------------------------
@@ -53,6 +70,9 @@ def scan_code():
         return jsonify({"error": "No code provided"}), 400
 
     code = data["code"]
+    
+    if not model or not tokenizer:
+        return jsonify({"error": "ML model is not loaded on the server. Detection unavailable."}), 503
 
     try:
         results = detect_lines(model, tokenizer, code)
