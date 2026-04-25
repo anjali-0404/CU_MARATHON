@@ -20,7 +20,8 @@ model User {
   bio           String?
   accounts      Account[]
   sessions      Session[]
-  
+  scanResults   ScanResult[]
+  apiKeys       ApiKey[]
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 }
@@ -58,4 +59,39 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+model ScanResult {
+  id             String          @id @default(cuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  originalCode   String          @db.Text
+  fixedCode      String?         @db.Text  // Will be null until the user requests a fix
+  
+  isVulnerable   Boolean         @default(false)
+  vulnerabilities Vulnerability[]
+  
+  createdAt      DateTime        @default(now())
+}
+
+model Vulnerability {
+  id             String      @id @default(cuid())
+  scanId         String
+  scan           ScanResult  @relation(fields: [scanId], references: [id], onDelete: Cascade)
+  
+  lineNumber     Int
+  codeSnippet    String      @db.Text
+  label          Int         // 0: Vulnerable, 1: Safe, 2: Hallucinated
+  labelName      String      // "VULNERABLE", "SAFE", "HALLUCINATED"
+  confidence     Float
+}
+
+model ApiKey {
+  id        String   @id @default(cuid())
+  name      String
+  key       String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
 }

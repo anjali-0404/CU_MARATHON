@@ -6,13 +6,30 @@ const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
+const getCompatibleDatabaseUrl = () => {
+  const raw = process.env.DATABASE_URL;
+  if (!raw) return undefined;
+
+  try {
+    const parsed = new URL(raw);
+    if (parsed.searchParams.has("sslmode") && !parsed.searchParams.has("uselibpqcompat")) {
+      parsed.searchParams.set("uselibpqcompat", "true");
+    }
+    return parsed.toString();
+  } catch {
+    return raw;
+  }
+};
+
 // Create PostgreSQL pool
 const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
+  connectionString: getCompatibleDatabaseUrl(),
 });
 
 // Create Prisma adapter
-const adapter = new PrismaPg(pool as any);
+const adapter = new PrismaPg(
+  pool as unknown as ConstructorParameters<typeof PrismaPg>[0]
+);
 
 export const prisma =
   globalForPrisma.prisma ??

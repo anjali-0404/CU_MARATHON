@@ -26,7 +26,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
     const pathname = usePathname();
 
     return (
-        <aside className={`fixed left-0 top-0 h-screen w-64 glass border-r border-card-border flex flex-col z-30 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <aside className={`fixed left-0 top-0 h-screen w-[85vw] max-w-64 glass border-r border-card-border flex flex-col z-30 transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             {/* Background Glow */}
             <div className="absolute top-0 left-0 w-full h-1/2 bg-primary/5 blur-[100px] pointer-events-none"></div>
 
@@ -51,7 +51,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 p-4 space-y-1 relative z-10 overflow-y-auto">
+            <nav className="flex-1 p-3 md:p-4 space-y-1 relative z-10 overflow-y-auto">
                 <p className="text-[10px] text-secondary uppercase font-black tracking-widest px-4 mb-4 opacity-50">Main Menu</p>
                 {navItems.map((item) => {
                     const Icon = item.icon;
@@ -110,7 +110,7 @@ export default function Sidebar({ isOpen, setIsOpen }: SidebarProps) {
             </div>
 
             {/* Scan Quota Card */}
-            <div className="p-5 m-4 glass rounded-2xl border border-primary/20 bg-primary/5 relative overflow-hidden group">
+            <div className="p-4 md:p-5 m-3 md:m-4 glass rounded-2xl border border-primary/20 bg-primary/5 relative overflow-hidden group">
                 <div className="absolute top-0 right-0 w-16 h-16 bg-primary/10 blur-xl translate-x-1/2 -translate-y-1/2 group-hover:scale-150 transition-transform"></div>
                 <div className="flex items-center justify-between mb-3 relative z-10">
                     <p className="text-[10px] text-secondary uppercase font-black tracking-widest">Neural Quota</p>

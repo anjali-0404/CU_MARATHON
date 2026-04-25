@@ -1,6 +1,6 @@
 'use client';
 
-import { Shield, Zap, Lock, Code, Cpu, Globe, ArrowRight, ChevronRight, PlayCircle, Chrome, Menu, X } from 'lucide-react';
+import { Shield, Zap, Lock, Code, Cpu, Globe, ArrowRight, PlayCircle, Chrome, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { useState } from 'react';
@@ -11,7 +11,7 @@ export default function LandingPage() {
     return (
         <div className="bg-background min-h-screen text-foreground selection:bg-primary/30">
             {/* Navigation */}
-            <nav className="fixed top-0 w-full z-50 glass border-b border-card-border px-6 md:px-8 py-4 flex items-center justify-between">
+            <nav className="fixed top-0 w-full z-50 glass border-b border-card-border px-4 sm:px-6 md:px-8 py-4 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                         <Shield className="w-5 h-5 text-white" />
@@ -84,7 +84,7 @@ export default function LandingPage() {
             </nav>
 
             {/* Hero Section */}
-            <section className="relative pt-32 pb-20 px-8 overflow-hidden">
+            <section className="relative pt-28 md:pt-32 pb-16 md:pb-20 px-4 sm:px-6 md:px-8 overflow-hidden">
                 {/* Background Gradients */}
                 <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-[600px] h-[600px] bg-primary/20 blur-[120px] rounded-full"></div>
                 <div className="absolute bottom-0 left-0 translate-y-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-purple-500/10 blur-[120px] rounded-full"></div>
@@ -102,7 +102,7 @@ export default function LandingPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 }}
-                            className="text-5xl md:text-7xl font-extrabold leading-[1.1]"
+                            className="text-4xl sm:text-5xl md:text-7xl font-extrabold leading-[1.1]"
                         >
                             Trust & Verify <br />
                             <span className="gradient-text">AI-Generated Code</span>
@@ -111,7 +111,7 @@ export default function LandingPage() {
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.2 }}
-                            className="text-lg text-secondary max-w-xl leading-relaxed"
+                            className="text-base md:text-lg text-secondary max-w-xl leading-relaxed"
                         >
                             Stop guessing if your LLM-generated code is safe.
                             CodeTrust AI uses deep neural analysis to detect vulnerabilities,
@@ -166,9 +166,9 @@ export default function LandingPage() {
                             {[0, 60, 120, 180, 240, 300].map((deg, i) => (
                                 <div
                                     key={i}
-                                    className="absolute top-1/2 left-1/2 w-4 h-4 rounded-full bg-primary/40"
+                                    className="absolute top-1/2 left-1/2 w-3 md:w-4 h-3 md:h-4 rounded-full bg-primary/40"
                                     style={{
-                                        transform: `rotate(${deg}deg) translate(220px)`,
+                                        transform: `rotate(${deg}deg) translate(clamp(140px, 24vw, 220px))`,
                                     }}
                                 ></div>
                             ))}
@@ -178,7 +178,7 @@ export default function LandingPage() {
             </section>
 
             {/* Features Grid */}
-            <section id="features" className="py-20 px-8 bg-card/5">
+            <section id="features" className="py-16 md:py-20 px-4 sm:px-6 md:px-8 bg-card/5">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-16 space-y-4">
                         <h2 className="text-3xl md:text-5xl font-bold">Enterprise-Grade AI Security</h2>
@@ -208,7 +208,7 @@ export default function LandingPage() {
             </section>
 
             {/* Download Extensions Section */}
-            <section id="download" className="py-20 px-8 relative overflow-hidden">
+            <section id="download" className="py-16 md:py-20 px-4 sm:px-6 md:px-8 relative overflow-hidden">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-primary/10 blur-[100px] rounded-full"></div>
                 <div className="max-w-4xl mx-auto text-center space-y-12 relative z-10">
                     <div className="space-y-4">
@@ -255,7 +255,7 @@ export default function LandingPage() {
             </section>
 
             {/* Security Section */}
-            <section id="security" className="py-24 px-8 relative bg-card/5">
+            <section id="security" className="py-16 md:py-24 px-4 sm:px-6 md:px-8 relative bg-card/5">
                 <div className="max-w-6xl mx-auto">
                     <div className="flex flex-col md:flex-row items-center gap-16">
                         <div className="flex-1 space-y-8">
@@ -323,7 +323,7 @@ export default function LandingPage() {
             </section>
 
             {/* Pricing Section */}
-            <section id="pricing" className="py-24 px-8">
+            <section id="pricing" className="py-16 md:py-24 px-4 sm:px-6 md:px-8">
                 <div className="max-w-6xl mx-auto">
                     <div className="text-center mb-16 space-y-4">
                         <h2 className="text-4xl md:text-6xl font-extrabold leading-tight">
@@ -396,13 +396,13 @@ export default function LandingPage() {
             </section>
 
             {/* Footer */}
-            <footer className="py-12 px-8 border-t border-card-border">
+            <footer className="py-12 px-4 sm:px-6 md:px-8 border-t border-card-border">
                 <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
                     <div className="flex items-center gap-2 grayscale hover:grayscale-0 transition-all">
                         <Shield className="w-6 h-6 text-primary" />
                         <span className="font-bold">CodeTrust AI</span>
                     </div>
-                    <div className="flex items-center gap-8 text-sm text-secondary">
+                    <div className="flex flex-wrap items-center justify-center gap-4 md:gap-8 text-sm text-secondary">
                         <a href="#" className="hover:text-foreground">Documentation</a>
                         <a href="#" className="hover:text-foreground">GitHub</a>
                         <a href="#" className="hover:text-foreground">Discord</a>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Play, Upload, FileCode, AlertCircle, Sparkles, CheckCircle2, RotateCcw, ChevronDown } from 'lucide-react';
+import { Play, FileCode, AlertCircle, Sparkles, CheckCircle2, RotateCcw, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Link from 'next/link';
 
 // --- TYPES FOR YOUR FLASK API ---
 interface ScanResult {
@@ -10,6 +11,14 @@ interface ScanResult {
     code: string;
     label: number;
     label_name: string;
+    confidence: number;
+}
+
+interface ApiVulnerability {
+    lineNumber: number;
+    codeSnippet: string;
+    label: number;
+    labelName: string;
     confidence: number;
 }
 
@@ -49,6 +58,7 @@ export default function AnalyzePage() {
     const [showFix, setShowFix] = useState(false);
     const [isFixing, setIsFixing] = useState(false);
     const [fixedCode, setFixedCode] = useState("");
+    const [currentScanId, setCurrentScanId] = useState<string | null>(null);
 
     const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -59,16 +69,27 @@ export default function AnalyzePage() {
         setScanResults([]);
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh1305-backend.hf.space";
-            const res = await fetch(`${apiUrl}/scan`, {
+            const res = await fetch(`/api/scan`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code })
             });
             const data = await res.json();
 
-            if (data.scan_results) {
-                setScanResults(data.scan_results);
+            // 👇 Capture the database ID!
+            if (data.id) {
+                setCurrentScanId(data.id);
+            }
+
+            if (data.vulnerabilities) {
+                const formattedResults = (data.vulnerabilities as ApiVulnerability[]).map((v) => ({
+                    line_number: v.lineNumber,
+                    code: v.codeSnippet,
+                    label: v.label,
+                    label_name: v.labelName,
+                    confidence: v.confidence
+                }));
+                setScanResults(formattedResults);
             }
         } catch (error) {
             console.error("Scan failed:", error);
@@ -79,17 +100,23 @@ export default function AnalyzePage() {
     };
 
     // --- PHASE 2: FIX API CALL ---
-    const handleGenerateFix = async () => {
+ const handleGenerateFix = async () => {
+        if (!currentScanId) return; // Prevent fixing if no scan exists
+        
         setShowFix(true);
         setIsFixing(true);
         setFixedCode("");
 
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://shaiiiikh1305-backend.hf.space";
-            const res = await fetch(`${apiUrl}/fix`, {
+            // 👇 Pointing to your local API and passing the scanId
+            const res = await fetch(`/api/fix`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ code, scan_results: scanResults })
+                body: JSON.stringify({ 
+                    code, 
+                    scan_results: scanResults,
+                    scanId: currentScanId 
+                })
             });
             const data = await res.json();
 
@@ -100,7 +127,7 @@ export default function AnalyzePage() {
             }
         } catch (error) {
             console.error("Fix failed:", error);
-            setFixedCode("Error connecting to the cloud AI model.");
+            setFixedCode("Error connecting to the local backend.");
         } finally {
             setIsFixing(false);
         }
@@ -126,7 +153,7 @@ export default function AnalyzePage() {
     const issues = scanResults.filter(res => res.label !== 1);
 
     return (
-        <div className="h-[calc(100vh-4rem)] flex flex-col lg:flex-row overflow-hidden relative">
+        <div className="min-h-[calc(100vh-4rem)] lg:h-[calc(100vh-4rem)] flex flex-col lg:flex-row overflow-visible lg:overflow-hidden relative">
             {/* Background Elements */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden opacity-20">
                 <div className="absolute top-1/4 right-1/4 w-96 h-96 bg-primary/20 blur-[120px] rounded-full animate-pulse-glow"></div>
@@ -134,9 +161,9 @@ export default function AnalyzePage() {
             </div>
 
             {/* Code Editor Panel */}
-            <div className="flex-1 flex flex-col border-r border-card-border bg-[#0A0F1E] min-h-[400px] z-10">
-                <div className="h-14 glass border-b border-card-border px-4 flex items-center justify-between flex-shrink-0 relative">
-                    <div className="flex items-center gap-3">
+            <div className="flex-1 flex flex-col border-r-0 lg:border-r border-card-border bg-[#0A0F1E] min-h-[380px] lg:min-h-[400px] z-10">
+                <div className="min-h-14 glass border-b border-card-border px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-3 flex-shrink-0 relative">
+                    <div className="flex items-center gap-2 sm:gap-3">
                         <div className="p-1.5 rounded bg-blue-500/10 border border-blue-500/20">
                             <FileCode className="w-4 h-4 text-primary" />
                         </div>
@@ -162,27 +189,26 @@ export default function AnalyzePage() {
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 ml-auto">
                         <button onClick={resetCode} className="p-2 text-secondary hover:text-foreground hover:bg-card/50 rounded-lg transition-colors">
                             <RotateCcw className="w-4 h-4" />
                         </button>
-                        <button onClick={handleAnalyze} disabled={analyzing} className="px-4 md:px-6 py-2 bg-primary hover:bg-blue-600 rounded-lg text-xs md:text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-primary/20">
+                            <button onClick={handleAnalyze} disabled={analyzing} className="px-4 sm:px-5 md:px-6 py-2 bg-primary hover:bg-blue-600 rounded-lg text-xs md:text-sm font-bold flex items-center gap-2 transition-all disabled:opacity-50 shadow-lg shadow-primary/20 whitespace-nowrap">
                             {analyzing ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>Analyzing...</> : <><Play className="w-4 h-4" />Analyze Code</>}
                         </button>
                     </div>
                 </div>
 
                 {/* Editor Area with Dynamic Highlighting */}
-                <div className="flex-1 relative overflow-hidden group">
+                <div className="flex-1 relative overflow-hidden group min-h-[340px]">
                     <textarea
                         ref={textAreaRef}
                         value={code}
                         onChange={(e) => setCode(e.target.value)}
                         spellCheck={false}
-                        // FIX: pl-[4.5rem] precisely matches the padding + the w-12 line number width!
-                        className="absolute inset-0 w-full h-full py-6 pr-6 pl-[4.5rem] bg-transparent text-transparent caret-white font-mono text-sm leading-relaxed resize-none focus:outline-none z-10"
+                        className="absolute inset-0 w-full h-full py-4 sm:py-6 pr-4 sm:pr-6 pl-14 sm:pl-[4.5rem] bg-transparent text-transparent caret-white font-mono text-sm leading-relaxed resize-none focus:outline-none z-10"
                     />
-                    <pre className="absolute inset-0 py-6 pr-6 pl-6 font-mono text-sm leading-relaxed pointer-events-none overflow-auto">
+                    <pre className="absolute inset-0 py-4 sm:py-6 pr-4 sm:pr-6 pl-4 sm:pl-6 font-mono text-sm leading-relaxed pointer-events-none overflow-auto">
                         <code className="block w-full">
                             {code.split('\n').map((line, i) => {
                                 const lineNum = i + 1;
@@ -199,7 +225,6 @@ export default function AnalyzePage() {
                                     <div key={i} className={`flex w-full ${highlightClass}`}>
                                         <span className="text-gray-600 w-12 flex-shrink-0 text-right pr-4 select-none italic">{lineNum}</span>
                                         <span className="text-gray-400 whitespace-pre">
-                                            {/* FIX: Regex matches words AND spaces perfectly, preserving exact cursor widths */}
                                             {line.match(/(\s+|\S+)/g)?.map((word, j) => {
                                                 const isKeyword = ['import', 'from', 'def', 'async', 'return', 'class', 'try', 'except'].includes(word.trim());
                                                 const isFunction = word.includes('(');
@@ -215,27 +240,27 @@ export default function AnalyzePage() {
             </div>
 
             {/* Dynamic Results Panel */}
-            <div className="w-full lg:w-[420px] flex flex-col bg-background/80 backdrop-blur-xl border-l border-card-border h-full lg:h-auto overflow-auto z-10">
-                <div className="h-14 glass border-b border-card-border px-6 flex items-center justify-between flex-shrink-0">
+            <div className="w-full lg:w-[420px] flex flex-col bg-background/80 backdrop-blur-xl border-t lg:border-t-0 lg:border-l border-card-border min-h-[300px] lg:h-auto overflow-auto z-10">
+                <div className="h-14 glass border-b border-card-border px-4 sm:px-6 flex items-center justify-between flex-shrink-0">
                     <h2 className="font-bold tracking-tight">AI Audit Results</h2>
                 </div>
 
                 <AnimatePresence mode="wait">
                     {!analyzed && !analyzing && (
-                        <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-12 text-center space-y-6">
+                        <motion.div key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 text-center space-y-6">
                             <div className="relative w-24 h-24 rounded-3xl glass border border-primary/40 flex items-center justify-center animate-float"><Sparkles className="w-10 h-10 text-primary" /></div>
                             <p className="font-extrabold text-xl text-foreground">Awaiting Analysis</p>
                         </motion.div>
                     )}
 
                     {analyzing && (
-                        <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-12 space-y-8">
+                        <motion.div key="analyzing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 flex flex-col items-center justify-center p-8 sm:p-12 space-y-8">
                             <p className="text-sm font-bold text-primary animate-pulse tracking-widest uppercase">Scanning Neural Patterns</p>
                         </motion.div>
                     )}
 
                     {analyzed && (
-                        <motion.div key="results" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 p-6 space-y-6">
+                        <motion.div key="results" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 p-4 sm:p-6 space-y-6">
                             {issues.length > 0 ? (
                                 <>
                                     {issues.map((issue, idx) => (
@@ -243,7 +268,7 @@ export default function AnalyzePage() {
                                             <span className={`text-[10px] font-black tracking-widest uppercase mb-1 ${issue.label === 0 ? 'text-red-500' : 'text-yellow-500'}`}>
                                                 {issue.label_name} (Line {issue.line_number})
                                             </span>
-                                            <div className="mt-2 p-3 rounded-xl bg-black/20 border border-white/5 font-mono text-xs text-secondary overflow-hidden text-ellipsis whitespace-nowrap">
+                                            <div className="mt-2 p-3 rounded-xl bg-black/20 border border-white/5 font-mono text-xs text-secondary whitespace-pre-wrap wrap-break-word">
                                                 {issue.code}
                                             </div>
                                         </motion.div>
@@ -252,6 +277,14 @@ export default function AnalyzePage() {
                                     <button onClick={handleGenerateFix} className="w-full py-4 bg-foreground text-background rounded-xl font-bold hover:bg-gray-200 transition-all shadow-xl flex items-center justify-center gap-3">
                                         <Sparkles className="w-5 h-5" /> Generate Secure Fix
                                     </button>
+                                    {currentScanId && (
+                                        <Link
+                                            href={`/reports?scanId=${currentScanId}`}
+                                            className="w-full inline-flex py-3 border border-card-border rounded-xl text-xs font-black uppercase tracking-widest justify-center hover:border-primary/30 hover:bg-card/30 transition-all"
+                                        >
+                                            Open Full Report
+                                        </Link>
+                                    )}
                                 </>
                             ) : (
                                 <div className="p-8 text-center glass rounded-2xl border border-safe/30">
@@ -268,7 +301,7 @@ export default function AnalyzePage() {
             <AnimatePresence>
                 {showFix && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-md">
-                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full max-w-2xl glass rounded-3xl border border-primary/30 p-8 space-y-8 shadow-2xl">
+                        <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="w-full max-w-2xl glass rounded-3xl border border-primary/30 p-4 sm:p-8 space-y-8 shadow-2xl max-h-[90vh] overflow-y-auto">
                             <div className="flex justify-between items-center">
                                 <h2 className="text-2xl font-black flex gap-3 items-center"><Sparkles className="text-primary" /> AI Proposed Fix</h2>
                                 <button onClick={() => setShowFix(false)} className="text-secondary hover:text-white"><AlertCircle className="rotate-45" /></button>

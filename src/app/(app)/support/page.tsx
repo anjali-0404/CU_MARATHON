@@ -35,7 +35,7 @@ export default function SupportPage() {
             </div>
 
             {/* Header / Search Hero */}
-            <div className="text-center space-y-6 py-12 relative z-10">
+            <div className="text-center space-y-6 py-8 md:py-12 relative z-10">
                 <motion.div
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
@@ -45,7 +45,7 @@ export default function SupportPage() {
                         <LifeBuoy className="w-3.5 h-3.5" /> Support Nexus 24/7
                     </span>
                 </motion.div>
-                <h1 className="text-4xl md:text-6xl font-black italic tracking-tighter">How can we <span className="gradient-text">Assist?</span></h1>
+                <h1 className="text-3xl sm:text-4xl md:text-6xl font-black italic tracking-tighter">How can we <span className="gradient-text">Assist?</span></h1>
                 <p className="text-secondary text-sm md:text-base max-w-2xl mx-auto font-medium">Search our forensic knowledge base or initiate a direct neural link with our security engineers.</p>
 
                 <div className="max-w-2xl mx-auto relative mt-8 group">
@@ -55,7 +55,7 @@ export default function SupportPage() {
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         placeholder="Search for security protocols, API docs, scan limits..."
-                        className="w-full pl-16 pr-6 py-5 bg-card/30 glass border border-card-border rounded-3xl text-sm font-bold focus:outline-none focus:border-primary/50 focus:bg-card transition-all placeholder:text-secondary/50 shadow-2xl"
+                        className="w-full pl-14 md:pl-16 pr-4 md:pr-6 py-4 md:py-5 bg-card/30 glass border border-card-border rounded-3xl text-sm font-bold focus:outline-none focus:border-primary/50 focus:bg-card transition-all placeholder:text-secondary/50 shadow-2xl"
                     />
                 </div>
             </div>
@@ -70,7 +70,7 @@ export default function SupportPage() {
                     <motion.div
                         key={i}
                         whileHover={{ y: -5 }}
-                        className="glass p-8 rounded-3xl border border-card-border hover:border-primary/30 transition-all cursor-pointer group"
+                        className="glass p-6 md:p-8 rounded-3xl border border-card-border hover:border-primary/30 transition-all cursor-pointer group"
                     >
                         <item.icon className={`w-8 h-8 ${item.color} mb-6 group-hover:scale-110 transition-transform`} />
                         <h3 className="text-lg font-black italic mb-2 tracking-tight">{item.label}</h3>
@@ -82,7 +82,7 @@ export default function SupportPage() {
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 pt-12 relative z-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 pt-8 md:pt-12 relative z-10">
                 {/* FAQ Section */}
                 <div className="space-y-6">
                     <div className="flex items-center gap-3 mb-8">
@@ -122,7 +122,7 @@ export default function SupportPage() {
                 </div>
 
                 {/* Contact Form */}
-                <div className="glass p-8 rounded-[40px] border border-card-border bg-card/5 relative overflow-hidden group">
+                <div className="glass p-5 sm:p-6 md:p-8 rounded-[32px] md:rounded-[40px] border border-card-border bg-card/5 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2"></div>
 
                     <div className="relative z-10">
@@ -186,7 +186,7 @@ export default function SupportPage() {
 
             {/* Footer Contact Info */}
             <div className="pt-12 border-t border-card-border flex flex-col items-center justify-center gap-6 relative z-10 text-center opacity-60">
-                <div className="flex gap-8">
+                <div className="flex flex-col sm:flex-row gap-4 sm:gap-8">
                     <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-secondary hover:text-foreground transition-colors cursor-pointer">
                         <Mail className="w-4 h-4 text-primary" /> infra@codetrust.ai
                     </div>

@@ -59,8 +59,8 @@ function ResetPasswordForm() {
             setTimeout(() => {
                 router.push('/login');
             }, 3000);
-        } catch (err: any) {
-            setError(err.message);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Something went wrong');
         } finally {
             setLoading(false);
         }
@@ -68,7 +68,7 @@ function ResetPasswordForm() {
 
     if (success) {
         return (
-            <div className="glass p-8 rounded-3xl border shadow-2xl text-center space-y-6 max-w-md w-full mx-auto">
+            <div className="glass p-5 sm:p-8 rounded-3xl border shadow-2xl text-center space-y-6 max-w-md w-full mx-auto">
                 <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-8 h-8 text-green-500" />
                 </div>
@@ -85,7 +85,7 @@ function ResetPasswordForm() {
     }
 
     return (
-        <div className="glass p-8 rounded-3xl border border-card-border shadow-2xl space-y-8 max-w-md w-full mx-auto relative z-10">
+        <div className="glass p-5 sm:p-8 rounded-3xl border border-card-border shadow-2xl space-y-8 max-w-md w-full mx-auto relative z-10">
             <div className="text-center space-y-2">
                 <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center mx-auto mb-4">
                     <Lock className="w-6 h-6 text-primary" />

@@ -19,7 +19,7 @@ export default function AuthLayout({
             </div>
 
             {/* Navigation Header */}
-            <header className="relative z-10 p-8 flex items-center justify-between">
+            <header className="relative z-10 p-4 sm:p-6 md:p-8 flex items-center justify-between">
                 <Link href="/" className="flex items-center gap-2 group">
                     <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center transition-transform group-hover:scale-110">
                         <Shield className="w-5 h-5 text-white" />
@@ -41,7 +41,7 @@ export default function AuthLayout({
             </main>
 
             {/* Footer */}
-            <footer className="relative z-10 p-8 text-center">
+            <footer className="relative z-10 p-4 sm:p-6 md:p-8 text-center">
                 <p className="text-xs text-secondary">
                     © 2024 CodeTrust AI. Secured by Enterprise-Grade Encryption.
                 </p>

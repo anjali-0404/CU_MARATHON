@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { AlertCircle, CheckCircle2, Copy, ShieldCheck, Zap, ArrowRight, Bug, Info, ChevronDown, ChevronUp, Loader2, Share2, Trash2, Sparkles } from 'lucide-react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
+import { AlertCircle, CheckCircle2, ShieldCheck, Zap, ArrowRight, Bug, Info, ChevronDown, ChevronUp, Loader2, Share2, Trash2, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 interface Finding {
     id: string;
@@ -16,43 +17,107 @@ interface Finding {
     unsafeCode: string;
     safeCode: string;
     aiRationale: string;
+    label?: number;
+    labelName?: string;
+    confidence?: number;
 }
 
-const INITIAL_FINDINGS: Finding[] = [
-    {
-        id: 'F-102',
-        title: 'SQL Injection via User Input',
-        severity: 'CRITICAL',
-        cwe: 'CWE-89',
-        owasp: 'A03:2021',
-        description: 'CodeTrust AI detected a direct concatenation of user input into a database query string. The variable `user_id` is passed directly to the execution engine without parameterized sanitization.',
-        file: 'auth_service.py',
-        line: 142,
-        unsafeCode: `query = f"SELECT * FROM users WHERE email = '{email}'"\ncursor.execute(query)`,
-        safeCode: `query = "SELECT * FROM users WHERE email = %s"\ncursor.execute(query, (email,))`,
-        aiRationale: 'Replaced f-string interpolation with parameterized queries to prevent SQL injection by treating the input as data rather than executable code.'
-    },
-    {
-        id: 'F-105',
-        title: 'Sensitive Data in Logs',
-        severity: 'HIGH',
-        cwe: 'CWE-532',
-        owasp: 'A09:2021',
-        description: 'The application is logging the entire `request.headers` object which may contain authentication tokens or session IDs.',
-        file: 'middleware/logger.js',
-        line: 15,
-        unsafeCode: `logger.info("Request received", { headers: req.headers });`,
-        safeCode: `const { authorization, ...safeHeaders } = req.headers;\nlogger.info("Request received", { headers: safeHeaders });`,
-        aiRationale: 'Masked the `authorization` header before logging to prevent credential leakage in application logs.'
-    }
-];
+interface ReportResponse {
+    scan: {
+        id: string;
+        displayId: string;
+        createdAt: string;
+        fixedCode?: string | null;
+        originalCode?: string;
+    };
+    findings: Finding[];
+}
 
-export default function ReportsPage() {
-    const [findings, setFindings] = useState(INITIAL_FINDINGS);
-    const [expandedId, setExpandedId] = useState<string | null>('F-102');
+function ReportsPageContent() {
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const scanId = searchParams.get('scanId');
+
+    const [findings, setFindings] = useState<Finding[]>([]);
+    const [expandedId, setExpandedId] = useState<string | null>(null);
     const [applyingFix, setApplyingFix] = useState<string | null>(null);
     const [fixedIds, setFixedIds] = useState<string[]>([]);
     const [showToast, setShowToast] = useState<string | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [reportDisplayId, setReportDisplayId] = useState('N/A');
+    const [resolvedScanId, setResolvedScanId] = useState<string | null>(scanId);
+    const [sourceCode, setSourceCode] = useState('');
+
+    const loadReport = useCallback(async (targetScanId: string | null) => {
+        if (!targetScanId) {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            setIsLoading(true);
+            const res = await fetch(`/api/reports/${targetScanId}`);
+            if (!res.ok) {
+                throw new Error('Failed to load report');
+            }
+
+            const data: ReportResponse = await res.json();
+            setFindings(data.findings);
+            setExpandedId(data.findings[0]?.id ?? null);
+            setReportDisplayId(data.scan.displayId);
+            setSourceCode(data.scan.originalCode ?? '');
+
+            if (data.scan.fixedCode) {
+                setFixedIds(data.findings.map((f) => f.id));
+            } else {
+                setFixedIds([]);
+            }
+        } catch (error) {
+            console.error('REPORT_LOAD_ERROR', error);
+            triggerToast('Unable to load report data');
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        setResolvedScanId(scanId);
+    }, [scanId]);
+
+    useEffect(() => {
+        const loadLatestScanId = async () => {
+            if (scanId) {
+                return;
+            }
+
+            try {
+                setIsLoading(true);
+                const res = await fetch('/api/history');
+                if (!res.ok) {
+                    throw new Error('Failed to load history');
+                }
+
+                const data: Array<{ realId: string }> = await res.json();
+                const latestScanId = data[0]?.realId;
+                if (!latestScanId) {
+                    setIsLoading(false);
+                    return;
+                }
+
+                setResolvedScanId(latestScanId);
+                router.replace(`/reports?scanId=${latestScanId}`);
+            } catch (error) {
+                console.error('REPORT_LATEST_SCAN_RESOLVE_ERROR', error);
+                setIsLoading(false);
+            }
+        };
+
+        loadLatestScanId();
+    }, [scanId, router]);
+
+    useEffect(() => {
+        loadReport(resolvedScanId);
+    }, [resolvedScanId, loadReport]);
 
     const getSeverityStyles = (severity: string) => {
         switch (severity) {
@@ -68,13 +133,43 @@ export default function ReportsPage() {
         setTimeout(() => setShowToast(null), 3000);
     };
 
-    const handleApplyFix = (id: string) => {
+    const handleApplyFix = async (id: string) => {
+        if (!resolvedScanId) {
+            triggerToast('Open a scan report from Dashboard or History first');
+            return;
+        }
+
         setApplyingFix(id);
-        setTimeout(() => {
-            setApplyingFix(null);
-            setFixedIds([...fixedIds, id]);
+        try {
+            const res = await fetch('/api/fix', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    scanId: resolvedScanId,
+                    code: sourceCode,
+                    scan_results: findings.map((f) => ({
+                        line_number: f.line,
+                        code: f.unsafeCode,
+                        label: f.label ?? (f.severity === 'CRITICAL' ? 0 : 2),
+                        label_name: f.labelName ?? f.severity,
+                        confidence: f.confidence ?? 0.9,
+                    })),
+                }),
+            });
+
+            if (!res.ok) {
+                throw new Error('Patch generation failed');
+            }
+
+            await loadReport(resolvedScanId);
+            setFixedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
             triggerToast(`Secured successfully: ${id}`);
-        }, 1500);
+        } catch (error) {
+            console.error('REPORT_FIX_ERROR', error);
+            triggerToast('Failed to apply security patch');
+        } finally {
+            setApplyingFix(null);
+        }
     };
 
     const ignoreFinding = (id: string) => {
@@ -97,7 +192,7 @@ export default function ReportsPage() {
                         animate={{ opacity: 1, x: 0 }}
                         className="flex items-center gap-2 mb-3 text-primary font-black text-[10px] md:text-xs tracking-[0.2em] uppercase"
                     >
-                        <span>Audit forensic</span> <ArrowRight className="w-3 h-3" /> <span>ID: SCN-8290</span>
+                        <span>Audit forensic</span> <ArrowRight className="w-3 h-3" /> <span>ID: {reportDisplayId}</span>
                     </motion.div>
                     <h1 className="text-3xl md:text-4xl font-black mb-3 italic">Security <span className="gradient-text">Manifest</span></h1>
                     <p className="text-secondary text-sm max-w-2xl leading-relaxed">
@@ -107,13 +202,20 @@ export default function ReportsPage() {
                 </div>
                 <div className="flex gap-3 w-full md:w-auto">
                     <button
-                        onClick={() => triggerToast('Report link copied to clipboard')}
+                        onClick={async () => {
+                            try {
+                                await navigator.clipboard.writeText(window.location.href);
+                                triggerToast('Report link copied to clipboard');
+                            } catch {
+                                triggerToast('Unable to copy report link');
+                            }
+                        }}
                         className="flex-1 md:flex-none px-6 py-3 glass border border-card-border rounded-xl text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-card hover:border-primary/30 transition-all active:scale-95"
                     >
                         <Share2 className="w-4 h-4" /> Share
                     </button>
                     <button
-                        onClick={() => triggerToast('Generating PDF report...')}
+                        onClick={() => triggerToast('Use Dashboard Report download for full forensic export')}
                         className="flex-1 md:flex-none px-6 py-3 bg-primary hover:bg-blue-600 rounded-xl text-xs font-black uppercase tracking-widest text-white transition-all shadow-xl shadow-primary/20 active:scale-95"
                     >
                         Export
@@ -122,7 +224,7 @@ export default function ReportsPage() {
             </div>
 
             {/* Stats Summary */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 relative z-10">
                 {[
                     { label: 'Neural Findings', value: findings.length + 22, color: 'foreground' },
                     { label: 'Critical Path', value: '03', color: 'vulnerable' },
@@ -153,10 +255,29 @@ export default function ReportsPage() {
                         <Bug className="w-6 h-6 text-primary" />
                         Primary Signatures
                     </h2>
-                    <p className="text-[10px] text-secondary font-bold uppercase tracking-widest">{findings.length} Unresolved Issues</p>
+                    <p className="text-[10px] text-secondary font-bold uppercase tracking-widest">{findings.length} Issues</p>
                 </div>
 
                 <AnimatePresence>
+                    {!resolvedScanId && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="glass rounded-2xl border border-card-border p-8 text-center text-secondary"
+                        >
+                            Open a report from Dashboard or History to view scan findings.
+                        </motion.div>
+                    )}
+                    {isLoading && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            className="glass rounded-2xl border border-card-border p-8 text-center"
+                        >
+                            <Loader2 className="w-6 h-6 animate-spin mx-auto mb-3 text-primary" />
+                            <p className="text-sm text-secondary">Loading forensic findings...</p>
+                        </motion.div>
+                    )}
                     {findings.map((finding) => (
                         <motion.div
                             key={finding.id}
@@ -168,10 +289,10 @@ export default function ReportsPage() {
                         >
                             {/* Header */}
                             <div
-                                className="p-5 flex items-center justify-between cursor-pointer group"
+                                className="p-4 sm:p-5 flex items-center justify-between cursor-pointer group gap-4"
                                 onClick={() => setExpandedId(expandedId === finding.id ? null : finding.id)}
                             >
-                                <div className="flex items-center gap-5">
+                                <div className="flex items-start sm:items-center gap-3 sm:gap-5 min-w-0">
                                     <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-all ${fixedIds.includes(finding.id) ? 'bg-safe/20 text-safe border border-safe/30' : 'bg-card border border-card-border group-hover:border-primary/30'
                                         }`}>
                                         {fixedIds.includes(finding.id) ? (
@@ -184,7 +305,7 @@ export default function ReportsPage() {
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-3 mb-1">
-                                            <h3 className={`font-black text-lg md:text-xl tracking-tight ${fixedIds.includes(finding.id) ? 'line-through text-secondary' : ''}`}>{finding.title}</h3>
+                                            <h3 className={`font-black text-base sm:text-lg md:text-xl tracking-tight wrap-break-word ${fixedIds.includes(finding.id) ? 'line-through text-secondary' : ''}`}>{finding.title}</h3>
                                             {fixedIds.includes(finding.id) ? (
                                                 <span className="px-3 py-1 rounded-full text-[10px] font-black border border-safe/30 bg-safe/20 text-safe tracking-widest uppercase">Secured</span>
                                             ) : (
@@ -202,7 +323,7 @@ export default function ReportsPage() {
                                         </div>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-6">
+                                <div className="flex items-center gap-3 sm:gap-6">
                                     <div className="text-right hidden sm:block">
                                         <p className="text-[10px] text-secondary uppercase font-black tracking-widest mb-0.5 opacity-50">Standards</p>
                                         <p className="text-xs font-mono font-black text-foreground">{finding.owasp}</p>
@@ -220,14 +341,14 @@ export default function ReportsPage() {
                                         exit={{ height: 0 }}
                                         className="overflow-hidden"
                                     >
-                                        <div className="p-6 md:p-8 border-t border-card-border bg-card/5 space-y-8">
+                                        <div className="p-4 sm:p-6 md:p-8 border-t border-card-border bg-card/5 space-y-8">
                                             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                                                 <div className="md:col-span-2 space-y-4">
                                                     <h4 className="text-[10px] font-black text-secondary uppercase tracking-[0.2em] flex items-center gap-2">
                                                         <Info className="w-4 h-4 text-primary" /> Forensic Context
                                                     </h4>
                                                     <p className="text-sm md:text-base leading-relaxed text-secondary border-l-2 border-primary/20 pl-6 italic">
-                                                        "{finding.description}"
+                                                        &quot;{finding.description}&quot;
                                                     </p>
                                                 </div>
                                                 <div className="glass p-4 rounded-xl border border-card-border space-y-3">
@@ -282,7 +403,7 @@ export default function ReportsPage() {
                                             </div>
 
                                             {/* Actions */}
-                                            <div className="flex flex-wrap justify-end gap-3 pt-6 border-t border-card-border">
+                                            <div className="flex flex-wrap justify-stretch sm:justify-end gap-3 pt-6 border-t border-card-border">
                                                 <button
                                                     onClick={() => ignoreFinding(finding.id)}
                                                     className="px-6 py-3 text-xs font-black uppercase tracking-widest text-secondary hover:text-vulnerable transition-colors flex items-center gap-2"
@@ -292,7 +413,7 @@ export default function ReportsPage() {
                                                 <button
                                                     onClick={() => handleApplyFix(finding.id)}
                                                     disabled={applyingFix === finding.id || fixedIds.includes(finding.id)}
-                                                    className={`px-8 py-3 rounded-xl text-xs md:text-sm font-black uppercase tracking-widest transition-all shadow-xl flex items-center gap-3 ${fixedIds.includes(finding.id)
+                                                    className={`w-full sm:w-auto px-6 sm:px-8 py-3 rounded-xl text-xs md:text-sm font-black uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 ${fixedIds.includes(finding.id)
                                                         ? 'bg-safe/20 text-safe border border-safe/30 cursor-default'
                                                         : 'bg-foreground text-background hover:bg-white active:scale-95'
                                                         }`}
@@ -331,7 +452,7 @@ export default function ReportsPage() {
                         initial={{ opacity: 0, y: 50, x: '-50%' }}
                         animate={{ opacity: 1, y: 0, x: '-50%' }}
                         exit={{ opacity: 0, y: 20, x: '-50%' }}
-                        className="fixed bottom-10 left-1/2 -z-0 glass px-8 py-4 rounded-3xl border border-primary/30 shadow-2xl shadow-primary/20 flex items-center gap-4 z-[100]"
+                        className="fixed bottom-6 sm:bottom-10 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] sm:w-auto glass px-4 sm:px-8 py-3 sm:py-4 rounded-3xl border border-primary/30 shadow-2xl shadow-primary/20 flex items-center justify-center gap-3 sm:gap-4 z-100"
                     >
                         <div className="w-2 h-2 rounded-full bg-primary animate-ping"></div>
                         <span className="text-xs font-black uppercase tracking-widest text-foreground">{showToast}</span>
@@ -339,5 +460,19 @@ export default function ReportsPage() {
                 )}
             </AnimatePresence>
         </div>
+    );
+}
+
+export default function ReportsPage() {
+    return (
+        <Suspense
+            fallback={
+                <div className="p-8 text-center text-secondary">
+                    Loading report...
+                </div>
+            }
+        >
+            <ReportsPageContent />
+        </Suspense>
     );
 }

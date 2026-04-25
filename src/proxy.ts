@@ -1,15 +1,11 @@
 import NextAuth from "next-auth";
 import { authConfig } from "./auth.config"; 
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import type { NextAuthRequest } from "next-auth";
 
 const { auth } = NextAuth(authConfig);
 
-interface AuthRequest extends NextRequest {
-  auth?: any;
-}
-
-export default auth((req: AuthRequest) => {
+export default auth((req: NextAuthRequest) => {
   const isLoggedIn = !!req.auth;
   const { pathname } = req.nextUrl;
 

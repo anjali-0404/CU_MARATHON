@@ -46,7 +46,13 @@ export const {
 
         if (!isValid) return null;
 
-        return user;
+        return {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          image: user.image,
+          bio: user.bio ?? undefined,
+        };
       },
     }),
   ],

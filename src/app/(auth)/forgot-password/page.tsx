@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
                 <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/10 blur-[100px] rounded-full animate-float" style={{ animationDelay: '2s' }}></div>
             </div>
 
-            <div className="glass p-8 rounded-3xl border border-card-border shadow-2xl space-y-8 max-w-md w-full relative z-10">
+            <div className="glass p-5 sm:p-8 rounded-3xl border border-card-border shadow-2xl space-y-8 max-w-md w-full relative z-10">
                 {!isSubmitted ? (
                     <>
                         <div className="text-center space-y-2">
@@ -41,7 +41,7 @@ export default function ForgotPasswordPage() {
                             </div>
                             <h1 className="text-3xl font-bold tracking-tight">Reset Password</h1>
                             <p className="text-secondary text-sm">
-                                Enter your email address and we'll send you a link to reset your password.
+                                Enter your email address and we&apos;ll send you a link to reset your password.
                             </p>
                         </div>
 
@@ -96,7 +96,7 @@ export default function ForgotPasswordPage() {
                         <div className="space-y-2">
                             <h2 className="text-2xl font-bold">Check your email</h2>
                             <p className="text-secondary text-sm">
-                                We've sent a password reset link to <span className="text-foreground font-medium">{email}</span>.
+                                We&apos;ve sent a password reset link to <span className="text-foreground font-medium">{email}</span>.
                             </p>
                         </div>
                         <div className="pt-4">
@@ -110,7 +110,7 @@ export default function ForgotPasswordPage() {
                                 onClick={() => setIsSubmitted(false)}
                                 className="mt-4 text-sm font-medium text-secondary hover:text-foreground transition-colors"
                             >
-                                Didn't receive the email? Try again
+                                Didn&apos;t receive the email? Try again
                             </button>
                         </div>
                     </div>

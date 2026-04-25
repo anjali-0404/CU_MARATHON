@@ -3,13 +3,13 @@
 import { useState } from 'react';
 import { useSession, signOut } from "next-auth/react";
 import {
-  Search, Bell, User, Menu, Settings,
-  LogOut, Shield, ChevronDown, Sparkles,
-  Download, Chrome
+  Search, User, Menu, Settings,
+  LogOut, ChevronDown
 } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
+import Image from 'next/image';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -19,9 +19,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
   const { data: session } = useSession();
 
-  const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);
-  const [showDownload, setShowDownload] = useState(false);
 
   const handleLogout = async () => {
     await signOut({ callbackUrl: "/login" });
@@ -29,7 +27,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
   return (
     <header className="fixed top-0 left-0 md:left-64 right-0 h-16 glass border-b border-card-border z-20 backdrop-blur-xl">
-      <div className="h-full px-4 md:px-6 flex items-center justify-between gap-4">
+      <div className="h-full px-3 sm:px-4 md:px-6 flex items-center justify-between gap-2 sm:gap-4">
 
         {/* Mobile Menu */}
         <button
@@ -40,7 +38,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         </button>
 
         {/* Search */}
-        <div className="flex-1 max-w-xl hidden sm:block">
+        <div className="flex-1 max-w-xl hidden md:block">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-secondary" />
             <input
@@ -52,7 +50,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
         </div>
 
         {/* Right section */}
-        <div className="flex items-center gap-4 ml-auto">
+        <div className="flex items-center gap-2 sm:gap-4 ml-auto">
 
           <ThemeToggle />
 
@@ -61,12 +59,15 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
 
             <div
               onClick={() => setShowProfile(!showProfile)}
-              className="flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer border border-card-border"
+              className="flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-2 rounded-xl cursor-pointer border border-card-border max-w-[70vw]"
             >
               <div className="w-8 h-8 rounded-full bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center">
                 {session?.user?.image ? (
-                  <img
+                  <Image
                     src={session.user.image}
+                    alt={session?.user?.name ? `${session.user.name} avatar` : 'User avatar'}
+                    width={32}
+                    height={32}
                     className="w-full h-full rounded-full"
                   />
                 ) : (
@@ -83,7 +84,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                 </p>
               </div>
 
-              <ChevronDown className="w-3 h-3 text-secondary" />
+              <ChevronDown className="w-3 h-3 text-secondary hidden sm:block" />
             </div>
 
             <AnimatePresence>
@@ -99,7 +100,7 @@ export default function Navbar({ onMenuClick }: NavbarProps) {
                     <p className="text-[10px] text-secondary uppercase">
                       Signed in as
                     </p>
-                    <p className="text-xs font-bold truncate">
+                    <p className="text-xs font-bold break-all">
                       {session?.user?.email}
                     </p>
                   </div>

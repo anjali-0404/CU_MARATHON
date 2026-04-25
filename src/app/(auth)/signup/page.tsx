@@ -58,7 +58,7 @@ export default function SignupPage() {
     return (
         <form
             onSubmit={handleSignup}
-            className="glass p-8 rounded-3xl border border-card-border shadow-2xl space-y-8"
+            className="glass p-5 sm:p-8 rounded-3xl border border-card-border shadow-2xl space-y-8"
         >
 
             <div className="text-center space-y-2">
@@ -152,7 +152,7 @@ export default function SignupPage() {
             </div>
 
             {/* OAuth */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
 
                 <button
                     type="button"

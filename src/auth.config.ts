@@ -1,4 +1,4 @@
-import type { NextAuthConfig } from "next-auth";
+import type { AuthConfig } from "@auth/core";
 
 export const authConfig = {
   session: {
@@ -11,21 +11,21 @@ export const authConfig = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
-        // @ts-ignore
-        token.bio = user.bio; 
+        const userBio = "bio" in user ? user.bio : undefined;
+        token.bio = typeof userBio === "string" ? userBio : undefined;
       }
       if (trigger === "update" && session) {
         if (session.name) token.name = session.name;
         if (session.email) token.email = session.email;
-        if (session.bio !== undefined) token.bio = session.bio;
+        const sessionBio = "bio" in session ? session.bio : undefined;
+        if (typeof sessionBio === "string") token.bio = sessionBio;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
-        // @ts-ignore
-        session.user.bio = token.bio as string | undefined;
+        (session.user as { bio?: string }).bio = token.bio as string | undefined;
       }
       return session;
     },
@@ -36,4 +36,4 @@ export const authConfig = {
     },
   },
   providers: [], // IMPORTANT: Leave providers empty here!
-} satisfies NextAuthConfig;
+} satisfies AuthConfig;
