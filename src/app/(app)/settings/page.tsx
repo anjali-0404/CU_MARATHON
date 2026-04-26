@@ -57,6 +57,7 @@ function SettingsContent() {
     // 3. Sync local state when the session loads
     useEffect(() => {
         if (session?.user) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setName(session.user.name || "");
             setEmail(session.user.email || "");
         }
@@ -68,6 +69,7 @@ function SettingsContent() {
 
     useEffect(() => {
         if (tabParam) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
             setActiveTab(tabParam);
         }
     }, [tabParam]);

@@ -12,20 +12,32 @@ interface MlScanResult {
 
 interface MlScanResponse {
     scan_results: MlScanResult[];
+    error?: string;
+}
+
+async function readBackendJson(response: Response): Promise<MlScanResponse> {
+    const text = await response.text();
+    if (!text) return { scan_results: [] };
+
+    try {
+        return JSON.parse(text) as MlScanResponse;
+    } catch {
+        return { scan_results: [], error: text };
+    }
 }
 
 export async function POST(req: Request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const body = await req.json();
         const { code } = body;
 
         if (!code) {
-            return new NextResponse("No code provided", { status: 400 });
+            return NextResponse.json({ error: "No code provided" }, { status: 400 });
         }
 
         // 1. Send code to local Flask ML Backend
@@ -38,12 +50,19 @@ export async function POST(req: Request) {
             body: JSON.stringify({ code }),
         });
 
+        const mlData = await readBackendJson(flaskResponse);
         if (!flaskResponse.ok) {
-            throw new Error("Failed to communicate with ML Backend");
+            return NextResponse.json(
+                { error: mlData.error ?? "Failed to communicate with ML Backend" },
+                { status: flaskResponse.status }
+            );
         }
 
-        const mlData: MlScanResponse = await flaskResponse.json();
         const scanResults = mlData.scan_results;
+
+        if (!scanResults.length) {
+            return NextResponse.json({ error: "No scan results returned" }, { status: 502 });
+        }
 
         // 2. Determine if the overall snippet has vulnerabilities
         const hasVulnerabilities = scanResults.some(
@@ -78,6 +97,6 @@ export async function POST(req: Request) {
 
     } catch (error) {
         console.error("SCAN_ERROR", error);
-        return new NextResponse("Internal Error", { status: 500 });
+        return NextResponse.json({ error: "Scan failed" }, { status: 500 });
     }
 }

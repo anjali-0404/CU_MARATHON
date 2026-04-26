@@ -2,11 +2,28 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 
+interface BackendFixResponse {
+    fixed_code?: string;
+    error?: string;
+    message?: string;
+}
+
+async function readBackendJson(response: Response): Promise<BackendFixResponse> {
+    const text = await response.text();
+    if (!text) return {};
+
+    try {
+        return JSON.parse(text) as BackendFixResponse;
+    } catch {
+        return { error: text };
+    }
+}
+
 export async function POST(req: Request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
-            return new NextResponse("Unauthorized", { status: 401 });
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         const body = await req.json();
@@ -29,7 +46,7 @@ export async function POST(req: Request) {
         const rawScanResults = parsedBody.scan_results;
 
         if (!scanId) {
-            return new NextResponse("Missing scanId", { status: 400 });
+            return NextResponse.json({ error: "Missing scanId" }, { status: 400 });
         }
 
         let code = rawCode;
@@ -43,7 +60,7 @@ export async function POST(req: Request) {
             });
 
             if (!existingScan) {
-                return new NextResponse("Scan not found", { status: 404 });
+                return NextResponse.json({ error: "Scan not found" }, { status: 404 });
             }
 
             code = existingScan.originalCode;
@@ -57,7 +74,7 @@ export async function POST(req: Request) {
         }
 
         if (!code || !scanResults) {
-            return new NextResponse("Missing required fields", { status: 400 });
+            return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
         // 1. Define the API URL exactly ONCE
@@ -70,25 +87,33 @@ export async function POST(req: Request) {
             body: JSON.stringify({ code, scan_results: scanResults }),
         });
 
+        const mlData = await readBackendJson(flaskResponse);
         if (!flaskResponse.ok) {
-            throw new Error("Failed to communicate with ML Backend");
+            return NextResponse.json(
+                { error: mlData.error ?? "Failed to communicate with ML Backend" },
+                { status: flaskResponse.status }
+            );
         }
 
-        const mlData = await flaskResponse.json();
         const fixedCode = mlData.fixed_code;
 
-        // 3. Save the fixed code back to the Prisma database
-        if (fixedCode) {
-            await prisma.scanResult.updateMany({
-                where: { id: scanId, userId: session.user.id },
-                data: { fixedCode: fixedCode },
-            });
+        if (!fixedCode) {
+            return NextResponse.json(
+                { error: mlData.error ?? "No fixed code was generated" },
+                { status: 502 }
+            );
         }
 
-        return NextResponse.json({ fixed_code: fixedCode });
+        // 3. Save the fixed code back to the Prisma database
+        await prisma.scanResult.updateMany({
+            where: { id: scanId, userId: session.user.id },
+            data: { fixedCode: fixedCode },
+        });
+
+        return NextResponse.json({ fixed_code: fixedCode, message: mlData.message });
 
     } catch (error) {
         console.error("FIX_ERROR", error);
-        return new NextResponse("Internal Error", { status: 500 });
+        return NextResponse.json({ error: "Fix generation failed" }, { status: 500 });
     }
 }

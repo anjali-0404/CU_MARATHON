@@ -22,6 +22,48 @@ interface ApiVulnerability {
     confidence: number;
 }
 
+interface ScanApiResponse {
+    id?: string;
+    vulnerabilities?: ApiVulnerability[];
+    scan_results?: ScanResult[];
+    error?: string;
+}
+
+interface FixApiResponse {
+    fixed_code?: string;
+    error?: string;
+    message?: string;
+}
+
+async function readApiJson<T extends object>(res: Response): Promise<T> {
+    const text = await res.text();
+    let data: unknown = {};
+
+    if (text) {
+        try {
+            data = JSON.parse(text);
+        } catch {
+            if (!res.ok) {
+                throw new Error(text);
+            }
+            throw new Error('Server returned an invalid JSON response');
+        }
+    }
+
+    if (!res.ok) {
+        const message =
+            data &&
+            typeof data === 'object' &&
+            'error' in data &&
+            typeof data.error === 'string'
+                ? data.error
+                : 'Request failed';
+        throw new Error(message);
+    }
+
+    return data as T;
+}
+
 const LANGUAGES = {
     python: {
         name: 'Python',
@@ -74,7 +116,7 @@ export default function AnalyzePage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ code })
             });
-            const data = await res.json();
+            const data = await readApiJson<ScanApiResponse>(res);
 
             // 👇 Capture the database ID!
             if (data.id) {
@@ -83,13 +125,19 @@ export default function AnalyzePage() {
 
             const vulnerabilities = data.vulnerabilities ?? data.scan_results ?? [];
             if (Array.isArray(vulnerabilities) && vulnerabilities.length > 0) {
-                const formattedResults = (vulnerabilities as ApiVulnerability[] | ScanResult[]).map((v: any) => ({
-                    line_number: v.lineNumber ?? v.line_number,
-                    code: v.codeSnippet ?? v.code,
-                    label: v.label,
-                    label_name: v.labelName ?? v.label_name,
-                    confidence: v.confidence,
-                }));
+                const formattedResults = (vulnerabilities as Array<ApiVulnerability | ScanResult>).map((v) => {
+                    if ('lineNumber' in v) {
+                        return {
+                            line_number: v.lineNumber,
+                            code: v.codeSnippet,
+                            label: v.label,
+                            label_name: v.labelName,
+                            confidence: v.confidence,
+                        };
+                    }
+
+                    return v;
+                });
                 setScanResults(formattedResults);
             }
         } catch (error) {
@@ -119,16 +167,16 @@ export default function AnalyzePage() {
                     scanId: currentScanId 
                 })
             });
-            const data = await res.json();
+            const data = await readApiJson<FixApiResponse>(res);
 
             if (data.fixed_code) {
                 setFixedCode(data.fixed_code);
             } else {
-                setFixedCode("No fix generated.");
+                setFixedCode(data.error ?? "No fix generated.");
             }
         } catch (error) {
             console.error("Fix failed:", error);
-            setFixedCode("Error connecting to the local backend.");
+            setFixedCode(error instanceof Error ? error.message : "Error connecting to the local backend.");
         } finally {
             setIsFixing(false);
         }

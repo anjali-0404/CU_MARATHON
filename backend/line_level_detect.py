@@ -73,7 +73,7 @@ def heuristic_scan(line):
         r"where\s+.*=\s*['\"]?\s*\+\s*\w+",                 # WHERE with concatenation
         r"execute\s*\(\s*f['\"]",                            # F-strings in execute
         r"\.execute\s*\(['\"].*%\s*['\"]",                  # String formatting in execute
-        r"cursor\.execute",                                  # cursor.execute with potential concatenation
+        r"cursor\.execute\s*\([^,]*(\+|%|\.format\(|f['\"])", # execute with interpolation/concatenation
     ]
     
     # 2. Command Injection Patterns
@@ -100,6 +100,7 @@ def heuristic_scan(line):
         r"\.innerHTML\s*=",
         r"document\.write\s*\(",
         r"response\.write\s*\(",
+        r"return\s+f?['\"].*<[^>]+>.*\{?\w*(user_input|request|input|query|param)\w*\}?.*['\"]",
     ]
     
     # 5. Path Traversal / File Access
@@ -130,8 +131,11 @@ def heuristic_scan(line):
     # 8. SSRF (Server-Side Request Forgery)
     ssrf_patterns = [
         r"requests\.(get|post|put|delete|patch)\(request\.",
+        r"requests\.(get|post|put|delete|patch)\(\s*\w*(url|uri|input|target|endpoint)\w*",
         r"urllib\.request\.urlopen\(request\.",
+        r"urllib\.request\.urlopen\(\s*\w*(url|uri|input|target|endpoint)\w*",
         r"httpx\.(get|post|put|delete|patch)\(request\.",
+        r"httpx\.(get|post|put|delete|patch)\(\s*\w*(url|uri|input|target|endpoint)\w*",
     ]
 
     import re

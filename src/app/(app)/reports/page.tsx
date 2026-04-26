@@ -48,6 +48,11 @@ function ReportsPageContent() {
     const [resolvedScanId, setResolvedScanId] = useState<string | null>(scanId);
     const [sourceCode, setSourceCode] = useState('');
 
+    const triggerToast = useCallback((msg: string) => {
+        setShowToast(msg);
+        setTimeout(() => setShowToast(null), 3000);
+    }, []);
+
     const loadReport = useCallback(async (targetScanId: string | null) => {
         if (!targetScanId) {
             setIsLoading(false);
@@ -78,9 +83,10 @@ function ReportsPageContent() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [triggerToast]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setResolvedScanId(scanId);
     }, [scanId]);
 
@@ -116,6 +122,7 @@ function ReportsPageContent() {
     }, [scanId, router]);
 
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         loadReport(resolvedScanId);
     }, [resolvedScanId, loadReport]);
 
@@ -126,11 +133,6 @@ function ReportsPageContent() {
             case 'MEDIUM': return 'bg-hallucinated/20 text-hallucinated border-hallucinated/30';
             default: return 'bg-safe/20 text-safe border-safe/30';
         }
-    };
-
-    const triggerToast = (msg: string) => {
-        setShowToast(msg);
-        setTimeout(() => setShowToast(null), 3000);
     };
 
     const handleApplyFix = async (id: string) => {

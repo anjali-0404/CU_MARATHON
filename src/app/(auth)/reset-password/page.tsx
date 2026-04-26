@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, Eye, EyeOff, CheckCircle2, AlertCircle, Loader2, ChevronLeft, ShieldCheck } from 'lucide-react';
 import Link from 'next/link';
@@ -18,13 +18,6 @@ function ResetPasswordForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(false);
-
-    // Redirect if no token
-    useEffect(() => {
-        if (!token) {
-            setError('Invalid or missing reset token.');
-        }
-    }, [token]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
