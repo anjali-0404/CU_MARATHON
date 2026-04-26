@@ -64,14 +64,16 @@ def heuristic_scan(line):
     Simple regex-based backup for common vulnerabilities.
     Returns (is_vulnerable, label_name, confidence)
     """
-    line = line.lower()
+    line_lower = line.lower()
     
     # 1. SQL Injection Patterns
     sqli_patterns = [
-        r"select\s+.*\s+from\s+.*\s+where\s+.*=\s*['\"].*\+",  # String concat in SQL
-        r"execute\s*\(.*\s*%\s*.*\)",                         # String formatting in execute
-        r"cursor\.execute\s*\(f['\"].*\{.*\}['\"]\)",        # F-strings in execute
-        r"\.format\(",                                        # .format() which is often unsafe in SQL
+        r"select\s+.*where.*=\s*['\"]?\s*\+",               # String concat in SQL WHERE clause
+        r"select\s+.*from.*where.*\+\s*['\"]",              # Concat before/after SQL
+        r"where\s+.*=\s*['\"]?\s*\+\s*\w+",                 # WHERE with concatenation
+        r"execute\s*\(\s*f['\"]",                            # F-strings in execute
+        r"\.execute\s*\(['\"].*%\s*['\"]",                  # String formatting in execute
+        r"cursor\.execute",                                  # cursor.execute with potential concatenation
     ]
     
     # 2. Command Injection Patterns
@@ -133,36 +135,53 @@ def heuristic_scan(line):
     ]
 
     import re
+    
+    # SIMPLE DIRECT CHECKS (highest priority)
+    # Check for string concatenation in SQL statements (most common pattern)
+    if "select" in line_lower and "where" in line_lower:
+        if ("+" in line or ".format(" in line or "{" in line) and ("'" in line or '"' in line):
+            return True, "VULNERABLE (SQLi)", 0.95
+    
+    # Check for string concatenation in any execute/query context
+    if ("execute" in line_lower or "query" in line_lower) and ("+" in line):
+        return True, "VULNERABLE (SQLi)", 0.92
+        
+    # Check for string formatting in SQL
+    if ("execute" in line_lower or "query" in line_lower) and ("%" in line or "{" in line):
+        if ("select" in line_lower or "insert" in line_lower or "update" in line_lower or "delete" in line_lower):
+            return True, "VULNERABLE (SQLi)", 0.92
+    
+    # REGEX PATTERNS (backup checks)
     for p in sqli_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (SQLi)", 0.95
             
     for p in cmd_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (CmdInjection)", 0.98
             
     for p in misc_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (Insecure)", 0.90
 
     for p in xss_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (XSS)", 0.92
 
     for p in path_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (PathTraversal)", 0.94
 
     for p in crypto_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (WeakCrypto)", 0.91
 
     for p in nosql_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (NoSQLi/Unsafe)", 0.93
 
     for p in ssrf_patterns:
-        if re.search(p, line):
+        if re.search(p, line_lower):
             return True, "VULNERABLE (SSRF)", 0.92
             
     return False, "SAFE", 0.0

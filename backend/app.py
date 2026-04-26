@@ -69,6 +69,7 @@ def scan_code():
 
     code = data["code"]
     print(f"Scanning code snippet ({len(code)} chars)...")
+    print(f"Code preview: {code[:200]}...")
     
     # We now check model availability in detect_lines itself
     # it will use heuristics if model is None
@@ -81,6 +82,9 @@ def scan_code():
         vuln_count = len([res for res in results if res["label"] in [0, 2]])
         score = 100 * (1 - vuln_count / total_lines) if total_lines > 0 else 100
 
+        print(f"Scan complete: {vuln_count} vulnerabilities found in {total_lines} lines")
+        print(f"Results: {results}")
+
         return jsonify({
             "success": True,
             "scan_results": results,
@@ -92,6 +96,7 @@ def scan_code():
         })
 
     except Exception as e:
+        print(f"Scan error: {e}")
         return jsonify({"error": str(e)}), 500
 
 
