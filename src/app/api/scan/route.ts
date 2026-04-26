@@ -71,7 +71,10 @@ export async function POST(req: Request) {
             }
         });
 
-        return NextResponse.json(savedScan);
+        return NextResponse.json({
+            id: savedScan.id,
+            vulnerabilities: savedScan.vulnerabilities,
+        });
 
     } catch (error) {
         console.error("SCAN_ERROR", error);

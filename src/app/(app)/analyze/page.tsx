@@ -81,13 +81,14 @@ export default function AnalyzePage() {
                 setCurrentScanId(data.id);
             }
 
-            if (data.vulnerabilities) {
-                const formattedResults = (data.vulnerabilities as ApiVulnerability[]).map((v) => ({
-                    line_number: v.lineNumber,
-                    code: v.codeSnippet,
+            const vulnerabilities = data.vulnerabilities ?? data.scan_results ?? [];
+            if (Array.isArray(vulnerabilities) && vulnerabilities.length > 0) {
+                const formattedResults = (vulnerabilities as ApiVulnerability[] | ScanResult[]).map((v: any) => ({
+                    line_number: v.lineNumber ?? v.line_number,
+                    code: v.codeSnippet ?? v.code,
                     label: v.label,
-                    label_name: v.labelName,
-                    confidence: v.confidence
+                    label_name: v.labelName ?? v.label_name,
+                    confidence: v.confidence,
                 }));
                 setScanResults(formattedResults);
             }
