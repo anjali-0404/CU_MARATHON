@@ -34,13 +34,11 @@ try:
         model = AutoModelForSequenceClassification.from_pretrained(MODEL_PATH)
     else:
         print(f"Local model not found at {MODEL_PATH}")
-        print("Falling back to microsoft/graphcodebert-base (Note: This might not detect vulnerabilities correctly without fine-tuning)")
-        tokenizer = AutoTokenizer.from_pretrained("microsoft/graphcodebert-base")
-        model = AutoModelForSequenceClassification.from_pretrained("microsoft/graphcodebert-base", num_labels=2) # Assuming 2 labels based on line_level_detect.py
+        print("ML Model missing. Using HEURISTIC detection engine as primary.")
+        tokenizer = None
+        model = None
 except Exception as e:
     print(f"Error loading model: {e}")
-    # Last resort fallback if even the base model fails
-    print("Critical error: Could not load any model. Backend will start but /scan will fail.")
     tokenizer = None
     model = None
 
@@ -70,13 +68,28 @@ def scan_code():
         return jsonify({"error": "No code provided"}), 400
 
     code = data["code"]
+    print(f"Scanning code snippet ({len(code)} chars)...")
     
+    # We now check model availability in detect_lines itself
+    # it will use heuristics if model is None
     if not model or not tokenizer:
-        return jsonify({"error": "ML model is not loaded on the server. Detection unavailable."}), 503
+        print("Warning: ML model is not loaded. Using heuristics only.")
 
     try:
         results = detect_lines(model, tokenizer, code)
-        return jsonify({"scan_results": results}), 200
+        total_lines = len(code.splitlines())
+        vuln_count = len([res for res in results if res["label"] in [0, 2]])
+        score = 100 * (1 - vuln_count / total_lines) if total_lines > 0 else 100
+
+        return jsonify({
+            "success": True,
+            "scan_results": results,
+            "summary": {
+                "total_lines": total_lines,
+                "vulnerabilities": vuln_count,
+                "score": round(score, 2)
+            }
+        })
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -177,5 +190,7 @@ Vulnerable Lines to Fix:
 # Start Flask server
 # -------------------------------
 
+print("Starting Flask server...")
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=7860)
+    print("Running on http://0.0.0.0:7860")
+    app.run(host="0.0.0.0", port=7860, debug=False)

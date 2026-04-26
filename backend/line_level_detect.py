@@ -59,9 +59,117 @@ def predict_window(model, tokenizer, text):
 
 # --- CORE DETECTION ENGINE ---
 
+def heuristic_scan(line):
+    """
+    Simple regex-based backup for common vulnerabilities.
+    Returns (is_vulnerable, label_name, confidence)
+    """
+    line = line.lower()
+    
+    # 1. SQL Injection Patterns
+    sqli_patterns = [
+        r"select\s+.*\s+from\s+.*\s+where\s+.*=\s*['\"].*\+",  # String concat in SQL
+        r"execute\s*\(.*\s*%\s*.*\)",                         # String formatting in execute
+        r"cursor\.execute\s*\(f['\"].*\{.*\}['\"]\)",        # F-strings in execute
+        r"\.format\(",                                        # .format() which is often unsafe in SQL
+    ]
+    
+    # 2. Command Injection Patterns
+    cmd_patterns = [
+        r"os\.system\s*\(",
+        r"subprocess\.popen\s*\(.*shell\s*=\s*true",
+        r"subprocess\.run\s*\(.*shell\s*=\s*true",
+        r"subprocess\.call\s*\(.*shell\s*=\s*true",
+    ]
+    
+    # 3. Insecure Deserialization / Hardcoded Secrets
+    misc_patterns = [
+        r"pickle\.loads\s*\(",
+        r"eval\s*\(",
+        r"exec\s*\(",
+        r"password\s*=\s*['\"].+['\"]",
+        r"api_key\s*=\s*['\"].+['\"]",
+        r"secret\s*=\s*['\"].+['\"]",
+    ]
+    
+    # 4. Cross-Site Scripting (XSS)
+    xss_patterns = [
+        r"dangerouslySetInnerHTML",
+        r"\.innerHTML\s*=",
+        r"document\.write\s*\(",
+        r"response\.write\s*\(",
+    ]
+    
+    # 5. Path Traversal / File Access
+    path_patterns = [
+        r"open\s*\(.*['\"].*\.\.\/.*['\"]",
+        r"send_file\s*\(",
+        r"os\.path\.join\s*\(.*request\.",
+    ]
+    
+    # 6. Cryptography & Secrets
+    crypto_patterns = [
+        r"hashlib\.md5\(",
+        r"hashlib\.sha1\(",
+        r"jwt\.decode\(.*verify\s*=\s*false",
+        r"bcrypt\.hashpw\(.*,\s*['\"].*['\"]",  # Hardcoded salt
+    ]
+    
+    # 7. NoSQL Injection & Misc
+    nosql_patterns = [
+        r"\$where",
+        r"mapReduce\(",
+        r"db\.collection\.find\(.*request\.",
+        r"chmod\s*\(.*777",
+        r"yaml\.load\(",  # Unsafe YAML load
+        r"pickle\.load\(",
+    ]
+    
+    # 8. SSRF (Server-Side Request Forgery)
+    ssrf_patterns = [
+        r"requests\.(get|post|put|delete|patch)\(request\.",
+        r"urllib\.request\.urlopen\(request\.",
+        r"httpx\.(get|post|put|delete|patch)\(request\.",
+    ]
+
+    import re
+    for p in sqli_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (SQLi)", 0.95
+            
+    for p in cmd_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (CmdInjection)", 0.98
+            
+    for p in misc_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (Insecure)", 0.90
+
+    for p in xss_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (XSS)", 0.92
+
+    for p in path_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (PathTraversal)", 0.94
+
+    for p in crypto_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (WeakCrypto)", 0.91
+
+    for p in nosql_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (NoSQLi/Unsafe)", 0.93
+
+    for p in ssrf_patterns:
+        if re.search(p, line):
+            return True, "VULNERABLE (SSRF)", 0.92
+            
+    return False, "SAFE", 0.0
+
 def detect_lines(model, tokenizer, code):
     """
-    Scans code line-by-line using a 2-class model cascade.
+    Scans code line-by-line using AI + Heuristic fallback.
     Returns JSON-ready list for the Next.js frontend.
     """
     lines = code.split('\n')
@@ -73,43 +181,61 @@ def detect_lines(model, tokenizer, code):
         end = min(len(lines), i + CONTEXT_RADIUS + 1)
         window_text = CONTEXT_SEP.join(lines[start:end])
         
-        # 2. Skip empty lines immediately to save processing time
+        # 2. Skip empty lines immediately
         if not line.strip():
             continue
             
-        # 3. STAGE 1: AI SCAN (2-Class Model)
-        # Assuming your 2-class model outputs: 0 = Vulnerable, 1 = Safe
-        label, probs = predict_window(model, tokenizer, window_text)
+        # 3. STAGE 0: Heuristic Scan (FAST & RELIABLE)
+        is_vuln_h, label_name_h, conf_h = heuristic_scan(line)
         
-        # 4. Apply Confidence Threshold
-        if label == 0 and probs[0] < CONFIDENCE_THRESHOLD:
-            label = 1
-            
-        # 5. Apply Boilerplate Filter
-        if is_boilerplate(line):
-            label = 1
-            
-        # 6. STAGE 2: THE CASCADE (Hallucination Check)
-        label_name = "SAFE" if label == 1 else "VULNERABLE"
+        # 4. STAGE 1: AI SCAN
+        label = 1
+        probs = [0.0, 1.0]
         
-        if label == 0:
-            # If AI thinks it's vulnerable, scan the context for fake guards
+        if model and tokenizer:
+            label, probs = predict_window(model, tokenizer, window_text)
+            
+            # Apply Confidence Threshold for AI
+            if label == 0 and probs[0] < CONFIDENCE_THRESHOLD:
+                label = 1
+        
+        # 5. Combine Results (Heuristic takes priority if it finds something)
+        if is_vuln_h:
+            label = 0
+            label_name = label_name_h
+            confidence = conf_h
+            probs = {"vulnerable": conf_h, "safe": 1-conf_h, "hallucinated": 0.0}
+        else:
+            label_name = "SAFE" if label == 1 else "VULNERABLE"
+            confidence = round(probs[label], 4) if isinstance(probs, list) else 0.0
+            probs_dict = {
+                "vulnerable": round(probs[0], 4) if isinstance(probs, list) else 0.0,
+                "safe": round(probs[1], 4) if isinstance(probs, list) else 1.0,
+                "hallucinated": 0.0
+            }
+            probs = probs_dict
+
+        # 6. Apply Boilerplate Filter (only if not already flagged by heuristics)
+        if not is_vuln_h and is_boilerplate(line):
+            label = 1
+            label_name = "SAFE"
+            
+        # 7. STAGE 2: THE CASCADE (Hallucination Check)
+        if label == 0 and not is_vuln_h:
             if any(guard in window_text for guard in FAKE_GUARDS):
                 label = 2
                 label_name = "HALLUCINATED"
+                probs["hallucinated"] = 0.99
+                confidence = 0.99
         
-        # 7. Format Output for Frontend API
+        # 8. Format Output for Frontend API
         results.append({
             "line_number": i + 1,
             "code": line.strip(),
             "label": label,
             "label_name": label_name,
-            "confidence": 0.99 if label == 2 else round(probs[label], 4),
-            "probs": {
-                "vulnerable": round(probs[0], 4),
-                "safe": round(probs[1], 4),
-                "hallucinated": 0.99 if label == 2 else 0.0 
-            }
+            "confidence": confidence,
+            "probs": probs
         })
         
     return results
